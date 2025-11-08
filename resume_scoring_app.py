@@ -667,10 +667,36 @@ def run_app():
 
 # Entrypoint for standalone execution (e.g., ``python resume_scoring_app.py``)
 if __name__ == "__main__":
-    if "streamlit" in os.environ.get("RUN_MAIN", ""):
-        # When executed through streamlit, this branch prevents accidental
-        # direct runs inside the streamlit server.  Streamlit sets RUN_MAIN
-        # when reloading the script.  We call run_app() only once per load.
+    """
+    Entry point for both Streamlit and command line execution.
+
+    Streamlit Cloud executes this script via ``streamlit run`` without
+    passing any command line arguments.  In that context, the global
+    ``streamlit`` module is available and sets an internal flag
+    ``_is_running_with_streamlit``.  We check for this attribute to
+    decide whether to launch the web interface or the command line
+    utility.  If no arguments are supplied (other than the script
+    itself), the web UI is the default.  Otherwise, the command line
+    interface is used for batch scoring.
+    """
+    import sys
+
+    # Determine whether we're running inside Streamlit.  When the app is
+    # executed with ``streamlit run``, Streamlit sets an internal
+    # attribute on the module.  We also fall back to the web UI when
+    # there are no command line arguments beyond the script name.
+    running_with_streamlit = bool(getattr(st, "_is_running_with_streamlit", False))
+    no_extra_args = len(sys.argv) <= 1
+
+    if running_with_streamlit or no_extra_args:
+        # Launch the Streamlit web application.  This branch is taken on
+        # Streamlit Cloud as well as when executing ``python
+        # resume_scoring_app.py`` without arguments, providing a
+        # user‑friendly interface.
+        if st is None:
+            raise RuntimeError(
+                "The Streamlit UI requires the 'streamlit' package. Please install it to use the web interface."
+            )
         run_app()
     else:
         # Provide a CLI fallback: allow scoring of a directory of resumes
